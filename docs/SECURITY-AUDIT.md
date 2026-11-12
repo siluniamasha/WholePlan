@@ -1,6 +1,6 @@
 # WholePlan security review
 
-Reviewed against GitHub commit `eb663ffc169a39f0d6c4964f80794783ac988db1` and the working tree on `chore/human-repo-cleanup`.
+The review covered the redesign and security changes based on GitHub commit `eb663ffc169a39f0d6c4964f80794783ac988db1`.
 
 ## Scope and method
 
