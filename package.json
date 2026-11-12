@@ -1,0 +1,15 @@
+{
+  "name": "wholeplan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Recovery-aware bundle checkout with PayPal Sandbox adapters",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "demo:evidence": "node scripts/demo.mjs",
+    "paypal:smoke": "node --env-file-if-exists=.env scripts/paypal-smoke.mjs"
+  },
+  "engines": { "node": ">=24.0.0" },
+  "license": "MIT"
+}

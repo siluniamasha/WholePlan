@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A recovery-aware checkout prototype: plan the whole experience and know what happens if a piece fails.">
+  <title>WholePlan · Make the whole thing happen</title><link rel="stylesheet" href="/style.css"><script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="WholePlan home"><span class="brand-icon">w<span>↗</span></span>WholePlan<span class="brand-dot">.</span></a>
+    <div class="workspace-label">YOUR WORKSPACE</div>
+    <nav aria-label="Workspace"><a class="nav-item selected" href="#planner"><span>▧</span> Bundle studio <span class="nav-count">01</span></a><a class="nav-item" href="#activity"><span>↗</span> Operation trail</a><a class="nav-item" href="#how-it-works"><span>◇</span> How it works</a></nav>
+    <div class="sidebar-note"><span class="small-orbit">◎</span><p>Great plans have<br>a way back.</p><span>Know the consequences<br>before you commit.</span></div>
+    <div class="sidebar-bottom"><span class="status-dot"></span> Local prototype <span>v0.1</span></div>
+  </aside>
+  <main>
+    <header class="topbar"><div>Workspace <span>/</span> Bundle studio</div><div class="topbar-right"><span id="provider-badge" class="badge">Loading configuration</span><span class="avatar">WP</span></div></header>
+    <section class="hero" id="planner"><div><div class="eyebrow"><span class="status-dot"></span> RECOVERY-AWARE CHECKOUT</div><h1>Make the <em>whole</em><br>thing happen.</h1><p>A ticket without a room isn't a trip. Plan connected purchases,<br class="desktop-break"> compare their cancellation terms, and keep a way back.</p></div><div class="hero-graphic" aria-hidden="true"><div class="orbit orbit-a"></div><div class="orbit orbit-b"></div><span class="orbit-chip chip-a">↗ &nbsp;Ticket</span><span class="orbit-chip chip-b">⌂ &nbsp;Stay</span><span class="orbit-chip chip-c">⇄ &nbsp;Ride</span><div class="orbit-core">w<span>↗</span></div></div></section>
+    <div id="notice" class="notice" role="status">Loading the local demonstration…</div>
+    <div id="error" class="error hidden" role="alert"></div>
+    <section class="studio-grid">
+      <form id="plan-form" class="panel brief-panel"><div class="panel-heading"><div class="step">01</div><div><h2>Start with the whole plan</h2><p>What needs to work together?</p></div></div>
+        <label for="brief">Your brief</label><textarea id="brief" rows="5" maxlength="4000" required>I want a concert ticket, a room for the night, and a return shuttle. Only book the trip if all three can work together.</textarea>
+        <div class="field-pair"><div><label for="budget">Total budget · USD</label><div class="money-input"><span>$</span><input id="budget" type="number" min="1" max="1000000" step="0.01" value="300" required></div></div><div><label for="max-loss">Cancellation allowance</label><div class="money-input"><span>$</span><input id="max-loss" type="number" min="0" max="1000000" step="0.01" value="0" required></div></div></div>
+        <p class="field-help">The most you accept in declared supplier cancellation penalties. Processing fees, FX, and supplier non-performance are outside this model.</p>
+        <div class="field-pair"><div><label for="travelers">Travelers</label><select id="travelers"><option value="1">1 traveler</option><option value="2">2 travelers</option><option value="3">3 travelers</option><option value="4">4 travelers</option><option value="5">5 travelers</option><option value="6">6 travelers</option></select></div><div><label for="scenario">Test the journey</label><select id="scenario"></select></div></div>
+        <label class="checkbox-label"><input id="use-rules" type="checkbox"> Use rule-based demo intake</label><p id="ai-source" class="field-help"></p>
+        <button class="button primary full" id="plan-button" type="submit">Find a complete bundle <span>↗</span></button><div class="form-foot">No reservation or payment is made by this step.</div>
+      </form>
+      <section class="panel bundle-panel" aria-label="Bundle review"><div class="panel-heading"><div class="step">02</div><div><h2>See the trade-off</h2><p>Price is only part of the decision.</p></div><span id="bundle-state" class="badge muted">Not started</span></div>
+        <div id="empty-state" class="empty-state"><div class="empty-symbol">◇</div><h3>Three purchases. One intention.</h3><p>Your reviewed bundle will appear here,<br>with the terms that matter if something fails.</p><div class="empty-nodes"><span>Ticket</span><i>＋</i><span>Stay</span><i>＋</i><span>Ride</span></div></div>
+        <div id="bundle-content" class="hidden"><div id="interpretation" class="interpretation"></div><div id="comparison" class="comparison"></div><div id="plan-reason" class="plan-reason"></div><div id="legs" class="legs"></div><div id="approval-controls"></div><div id="financial-summary" class="financial-summary"></div><div id="run-message" class="run-message"></div><div id="run-controls" class="run-controls"></div><div id="manifest-note" class="manifest-note"></div></div>
+      </section>
+    </section>
+    <section class="panel activity-panel" id="activity"><div class="panel-heading"><div class="step">03</div><div><h2>Every action, accounted for</h2><p>Provider references and recovery states, as they happen.</p></div><button class="text-button" id="export-button" disabled>Export evidence ↓</button></div><div id="timeline" class="timeline"><p class="muted-text">Start a plan to see its operation trail.</p></div></section>
+    <section class="how-grid" id="how-it-works"><article><div class="how-number">01 / PLAN</div><h3>Compare the way back.</h3><p>Eight fictional bundles are checked against your budget and accepted cancellation penalties. AI can interpret the brief; code calculates every amount.</p></article><article><div class="how-number">02 / COMMIT</div><h3>Verify every piece.</h3><p>Supplier inventory and payment authorizations are separate. All reservations must be valid before any capture begins.</p></article><article><div class="how-number">03 / RECOVER</div><h3>Show what actually happened.</h3><p>A failed step starts a recovery workflow. Pending refunds and unknown outcomes stay visible until they are resolved.</p></article></section>
+    <footer><strong>WholePlan</strong><span>A working-name prototype for the PayPal AI Hackathon. No atomic-payment or insurance guarantee.</span><span>Made for the moments between.</span></footer>
+  </main>
+</body>
+</html>
