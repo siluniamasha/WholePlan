@@ -1,40 +1,96 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A recovery-aware checkout prototype: plan the whole experience and know what happens if a piece fails.">
-  <title>WholePlan · Make the whole thing happen</title><link rel="stylesheet" href="/style.css"><script type="module" src="/app.mjs"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#003ee8">
+  <title>WholePlan — Connected purchases, considered together</title>
+  <meta name="description" content="Plan a ticket, a stay and a ride together. Compare total prices and cancellation terms, review every payment, and follow recovery when a step fails.">
+  <link rel="canonical" href="{{PUBLIC_ORIGIN}}/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="WholePlan — Every piece. One whole plan.">
+  <meta property="og:description" content="Connected purchases, considered together. Explore a clearer way to plan, pay and recover.">
+  <meta property="og:url" content="{{PUBLIC_ORIGIN}}/">
+  <meta property="og:image" content="{{PUBLIC_ORIGIN}}/assets/wholeplan-social.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="WholePlan. Every piece. One whole plan.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{PUBLIC_ORIGIN}}/assets/wholeplan-social.png">
+  <link rel="icon" href="/assets/favicon-64.png" type="image/png" sizes="64x64">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="preload" as="image" href="/assets/wholeplan-hero.webp" imagesrcset="/assets/wholeplan-hero-640.webp 640w, /assets/wholeplan-hero.webp 1024w" imagesizes="(max-width: 680px) 90vw, 45vw">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/landing.mjs"></script>
 </head>
-<body>
-  <aside class="sidebar">
-    <a class="brand" href="/" aria-label="WholePlan home"><span class="brand-icon">w<span>↗</span></span>WholePlan<span class="brand-dot">.</span></a>
-    <div class="workspace-label">YOUR WORKSPACE</div>
-    <nav aria-label="Workspace"><a class="nav-item selected" href="#planner"><span>▧</span> Bundle studio <span class="nav-count">01</span></a><a class="nav-item" href="#activity"><span>↗</span> Operation trail</a><a class="nav-item" href="#how-it-works"><span>◇</span> How it works</a></nav>
-    <div class="sidebar-note"><span class="small-orbit">◎</span><p>Great plans have<br>a way back.</p><span>Know the consequences<br>before you commit.</span></div>
-    <div class="sidebar-bottom"><span class="status-dot"></span> Local prototype <span>v0.1</span></div>
-  </aside>
-  <main>
-    <header class="topbar"><div>Workspace <span>/</span> Bundle studio</div><div class="topbar-right"><span id="provider-badge" class="badge">Loading configuration</span><span class="avatar">WP</span></div></header>
-    <section class="hero" id="planner"><div><div class="eyebrow"><span class="status-dot"></span> RECOVERY-AWARE CHECKOUT</div><h1>Make the <em>whole</em><br>thing happen.</h1><p>A ticket without a room isn't a trip. Plan connected purchases,<br class="desktop-break"> compare their cancellation terms, and keep a way back.</p></div><div class="hero-graphic" aria-hidden="true"><div class="orbit orbit-a"></div><div class="orbit orbit-b"></div><span class="orbit-chip chip-a">↗ &nbsp;Ticket</span><span class="orbit-chip chip-b">⌂ &nbsp;Stay</span><span class="orbit-chip chip-c">⇄ &nbsp;Ride</span><div class="orbit-core">w<span>↗</span></div></div></section>
-    <div id="notice" class="notice" role="status">Loading the local demonstration…</div>
-    <div id="error" class="error hidden" role="alert"></div>
-    <section class="studio-grid">
-      <form id="plan-form" class="panel brief-panel"><div class="panel-heading"><div class="step">01</div><div><h2>Start with the whole plan</h2><p>What needs to work together?</p></div></div>
-        <label for="brief">Your brief</label><textarea id="brief" rows="5" maxlength="4000" required>I want a concert ticket, a room for the night, and a return shuttle. Only book the trip if all three can work together.</textarea>
-        <div class="field-pair"><div><label for="budget">Total budget · USD</label><div class="money-input"><span>$</span><input id="budget" type="number" min="1" max="1000000" step="0.01" value="300" required></div></div><div><label for="max-loss">Cancellation allowance</label><div class="money-input"><span>$</span><input id="max-loss" type="number" min="0" max="1000000" step="0.01" value="0" required></div></div></div>
-        <p class="field-help">The most you accept in declared supplier cancellation penalties. Processing fees, FX, and supplier non-performance are outside this model.</p>
-        <div class="field-pair"><div><label for="travelers">Travelers</label><select id="travelers"><option value="1">1 traveler</option><option value="2">2 travelers</option><option value="3">3 travelers</option><option value="4">4 travelers</option><option value="5">5 travelers</option><option value="6">6 travelers</option></select></div><div><label for="scenario">Test the journey</label><select id="scenario"></select></div></div>
-        <label class="checkbox-label"><input id="use-rules" type="checkbox"> Use rule-based demo intake</label><p id="ai-source" class="field-help"></p>
-        <button class="button primary full" id="plan-button" type="submit">Find a complete bundle <span>↗</span></button><div class="form-foot">No reservation or payment is made by this step.</div>
-      </form>
-      <section class="panel bundle-panel" aria-label="Bundle review"><div class="panel-heading"><div class="step">02</div><div><h2>See the trade-off</h2><p>Price is only part of the decision.</p></div><span id="bundle-state" class="badge muted">Not started</span></div>
-        <div id="empty-state" class="empty-state"><div class="empty-symbol">◇</div><h3>Three purchases. One intention.</h3><p>Your reviewed bundle will appear here,<br>with the terms that matter if something fails.</p><div class="empty-nodes"><span>Ticket</span><i>＋</i><span>Stay</span><i>＋</i><span>Ride</span></div></div>
-        <div id="bundle-content" class="hidden"><div id="interpretation" class="interpretation"></div><div id="comparison" class="comparison"></div><div id="plan-reason" class="plan-reason"></div><div id="legs" class="legs"></div><div id="approval-controls"></div><div id="financial-summary" class="financial-summary"></div><div id="run-message" class="run-message"></div><div id="run-controls" class="run-controls"></div><div id="manifest-note" class="manifest-note"></div></div>
-      </section>
+<body class="landing-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="WholePlan home"><img class="brand-logo" src="/assets/wholeplan-mark.png" alt="" width="40" height="40">wholeplan<span class="brand-period">.</span></a>
+    <button class="menu-toggle icon-button" aria-label="Open navigation" aria-expanded="false" aria-controls="site-navigation"><span></span><span></span></button>
+    <nav class="site-navigation" id="site-navigation" aria-label="Main navigation">
+      <a href="#how-it-works">How it works</a>
+      <a href="#the-difference">The difference</a>
+      <a href="#questions">FAQs</a>
+      <a class="button button-small button-dark" href="/app">Open the app <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="landing-hero section-shell">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="blue-dot"></span> CONNECTED PURCHASES. CONSIDERED TOGETHER.</p>
+        <h1>Every piece.<br>One <span class="blue-text">whole plan.</span></h1>
+        <p class="hero-description">The ticket. The stay. The way home.<br>Bring the purchases that depend on each other<br class="desktop-only"> into one plan you can actually follow.</p>
+        <div class="hero-actions"><a class="button button-primary" href="/app">Build your plan <span aria-hidden="true">↗</span></a><a class="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div>
+        <p class="hero-footnote">Explore the interactive demo. Sample suppliers. Test payments.</p>
+      </div>
+      <div class="hero-object">
+        <span class="object-coordinate coordinate-top">01 — THE WHOLE PICTURE</span>
+        <img class="hero-art" src="/assets/wholeplan-hero.webp"
+          srcset="/assets/wholeplan-hero-640.webp 640w, /assets/wholeplan-hero.webp 1024w"
+          sizes="(max-width: 680px) 90vw, 45vw"
+          width="1024" height="1024" fetchpriority="high" decoding="async"
+          alt="Connected concert ticket, hotel key and shuttle cards, with the WholePlan ribbon logo">
+      </div>
+      <div class="hero-bottom"><span>PLAN WITH INTENTION</span><span>PAY WITH CLARITY</span><span>FOLLOW EVERY STEP <span aria-hidden="true">↓</span></span></div>
     </section>
-    <section class="panel activity-panel" id="activity"><div class="panel-heading"><div class="step">03</div><div><h2>Every action, accounted for</h2><p>Provider references and recovery states, as they happen.</p></div><button class="text-button" id="export-button" disabled>Export evidence ↓</button></div><div id="timeline" class="timeline"><p class="muted-text">Start a plan to see its operation trail.</p></div></section>
-    <section class="how-grid" id="how-it-works"><article><div class="how-number">01 / PLAN</div><h3>Compare the way back.</h3><p>Eight fictional bundles are checked against your budget and accepted cancellation penalties. AI can interpret the brief; code calculates every amount.</p></article><article><div class="how-number">02 / COMMIT</div><h3>Verify every piece.</h3><p>Supplier inventory and payment authorizations are separate. All reservations must be valid before any capture begins.</p></article><article><div class="how-number">03 / RECOVER</div><h3>Show what actually happened.</h3><p>A failed step starts a recovery workflow. Pending refunds and unknown outcomes stay visible until they are resolved.</p></article></section>
-    <footer><strong>WholePlan</strong><span>A working-name prototype for the PayPal AI Hackathon. No atomic-payment or insurance guarantee.</span><span>Made for the moments between.</span></footer>
+    <section class="how-section section-shell" id="how-it-works" aria-labelledby="how-title">
+      <div class="section-heading"><p class="eyebrow">01 / A LITTLE MORE CONNECTED</p><h2 id="how-title">From “what if”<br>to a plan.</h2><p>Separate purchases have shared consequences.<br>Make those connections part of the decision.</p></div>
+      <div class="steps-grid">
+        <article class="step-card"><span class="step-number">01</span><h3>Start with the whole idea.</h3><p>Describe the evening you have in mind. Set your total budget and the cancellation fees you’re comfortable accepting.</p><span class="step-caption">YOUR INTENTION → A REVIEWABLE PLAN</span></article>
+        <article class="step-card"><span class="step-number">02</span><h3>See the trade-off.</h3><p>Compare complete bundles. A lower price can come with a higher cancellation fee. Review the terms before approving.</p><span class="step-caption">PRICE + FLEXIBILITY → YOUR CHOICE</span></article>
+        <article class="step-card"><span class="step-number">03</span><h3>Keep every step in view.</h3><p>Follow payment holds, completed charges and refunds. If a step fails, see the recovery progress and any amount still unresolved.</p><span class="step-caption">PAYMENT → CONFIRMATION → RECOVERY</span></article>
+      </div>
+    </section>
+    <section class="difference-section section-shell" id="the-difference" aria-labelledby="difference-title">
+      <div class="difference-copy"><p class="eyebrow">02 / PRICE IS PART OF THE PICTURE</p><h2 id="difference-title">A good plan has<br>a way back.</h2><p>Paying a little more upfront can give you more room to change course. WholePlan puts the cancellation terms beside the total price.</p><p class="small-note">This example uses fictional prices and policies. It compares declared supplier fees. Processing fees, currency conversion and supplier non-performance sit outside the model.</p><a class="text-link" href="/app?example=flexible">Explore this example <span aria-hidden="true">↗</span></a></div>
+      <div class="tradeoff-demo">
+        <div class="tradeoff-heading"><span>SAME EVENING. TWO WAYS TO BOOK.</span><span>USD</span></div>
+        <div class="choice-tabs" role="group" aria-label="Compare example bundles"><button class="choice-tab" data-choice="lowest" aria-pressed="false">Lowest price</button><button class="choice-tab is-active" data-choice="flexible" aria-pressed="true">More flexibility</button></div>
+        <div class="tradeoff-value"><span id="example-label">The flexible bundle</span><strong id="example-price">$245<span>.00</span></strong><span class="tradeoff-subtitle">Ticket + room + return shuttle</span></div>
+        <div class="tradeoff-fee"><span>Declared cancellation fees</span><strong id="example-fee">$0.00</strong></div>
+        <p id="example-explanation" class="tradeoff-explanation" aria-live="polite">Costs $25 more upfront, with $35 less in declared cancellation fees if this sample bundle needs to be unwound.</p>
+        <div class="tradeoff-footer"><span class="check-circle">✓</span> Review the terms. Make your own call.</div>
+      </div>
+    </section>
+    <section class="clarity-section section-shell" aria-labelledby="clarity-title">
+      <div><p class="eyebrow">03 / EVEN WHEN PLANS CHANGE</p><h2 id="clarity-title">Follow the money.<br>Every step of the way.</h2><p>A missing response can leave you wondering what happened.<br>WholePlan checks the recorded outcome before continuing.</p><a class="button button-light" href="/app?scenario=lost_response">Try a recovery scenario <span aria-hidden="true">↗</span></a></div>
+      <ol class="clarity-timeline"><li><span class="clarity-dot">✓</span><div><span>01 / TICKET</span><strong>Payment confirmed</strong></div><span>$80.00</span></li><li><span class="clarity-dot pending-dot">↻</span><div><span>02 / HOTEL</span><strong>A step needs recovery</strong></div><span>Checking</span></li><li><span class="clarity-dot">↗</span><div><span>03 / RECOVERY</span><strong>Refund progress stays visible</strong></div><span>Track it</span></li></ol>
+      <p class="clarity-caption">ILLUSTRATIVE WORKFLOW · RECOVERY FOLLOWS EACH SELLER’S TERMS</p>
+    </section>
+    <section class="faq-section section-shell" id="questions" aria-labelledby="faq-title">
+      <div><p class="eyebrow">A FEW THINGS TO KNOW</p><h2 id="faq-title">Good questions.<br>Clear answers.</h2></div>
+      <div class="faq-list">
+        <details><summary>What can I try in WholePlan?<span aria-hidden="true">+</span></summary><p>The prototype plans a concert ticket, a room and a return shuttle for one to six travelers. You can compare sample bundles and test seven different payment and recovery scenarios.</p></details>
+        <details><summary>Will the demo charge real money?<span aria-hidden="true">+</span></summary><p>The simulator uses local payment records. PayPal Sandbox mode uses test accounts and test funds. The app shows which mode is active before you create a plan.</p></details>
+        <details><summary>What happens if one purchase fails?<span aria-hidden="true">+</span></summary><p>The app stops the remaining checkout steps. You can start recovery to refund eligible captures and release uncaptured payment holds. Pending refunds and unresolved outcomes remain visible.</p></details>
+        <details><summary>Where does AI help?<span aria-hidden="true">+</span></summary><p>When configured, Gemini interprets your request and extracts its components. You review the result. Your entered budget, supplier terms and payment checks are enforced by the application.</p></details>
+        <details><summary>Are the hotels and tickets real listings?<span aria-hidden="true">+</span></summary><p>The supplier names, inventory, prices and cancellation policies are demonstration examples. Real supplier booking integrations are a future step.</p></details>
+        <details><summary>Can every payment always be reversed?<span aria-hidden="true">+</span></summary><p>Recovery depends on the supplier’s terms and the payment provider’s status. Cancellation fees may remain. A refund can take time to become available through your bank.</p></details>
+      </div>
+    </section>
+    <section class="final-cta section-shell"><p class="eyebrow">YOUR NEXT PLAN STARTS HERE</p><h2>Make room for<br>the <span class="blue-text">whole experience.</span></h2><a class="button button-primary" href="/app">Build your plan <span aria-hidden="true">↗</span></a><span class="final-caption">A TICKET. A STAY. A WAY HOME.</span></section>
   </main>
+  <footer class="site-footer section-shell"><a class="brand" href="/" aria-label="WholePlan home"><img class="brand-logo" src="/assets/wholeplan-mark.png" alt="" width="40" height="40">wholeplan<span class="brand-period">.</span></a><p>An independent prototype exploring connected checkout.<br>Sample suppliers. Simulation and PayPal Sandbox test payments.</p><div><a href="/app">Open the app ↗</a><a href="#questions">Questions & answers</a><span>© 2026 WholePlan</span></div></footer>
 </body>
 </html>

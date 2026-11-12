@@ -1,50 +1,328 @@
-const $=id=>document.getElementById(id);
-const money=c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(c/100);
-const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let config,run,busy=false;
-const states={DRAFT:'Review ready',BLOCKED:'No matching bundle',PREPARING:'Preparing',AWAITING_APPROVAL:'Needs buyer approvals',READY:'Ready to commit',RUNNING:'Processing',COMPLETED:'Bundle complete',RECOVERY_REQUIRED:'Recovery required',RECOVERING:'Recovering',OUTCOME_UNKNOWN:'Outcome unknown',REFUND_PENDING:'Refund pending',RECOVERED:'Recovery confirmed',NEEDS_ATTENTION:'Needs attention'};
-async function request(path,body){const r=await fetch(path,{...(body!==undefined?{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':config.csrf},body:JSON.stringify(body)}:{}),cache:'no-store'});const b=await r.json();if(!r.ok)throw new Error(b.error??`Request failed (${r.status}).`);return b;}
-function error(message){$('error').textContent=message;$('error').classList.toggle('hidden',!message);}
-function setBusy(value){busy=value;document.querySelectorAll('button').forEach(b=>b.disabled=value);if(!value)$('export-button').disabled=!run;$('plan-button').innerHTML=value?'<span class="spinner"></span> Working…':'Find a complete bundle <span>↗</span>';}
-async function work(fn){if(busy)return;error('');setBusy(true);try{await fn();}catch(e){error(e.message);}finally{setBusy(false);if(run)render();}}
-function legStatus(l){if(l.recoveryError)return {text:l.recoveryError,cls:'issue'};if(l.refund)return {text:`Refund ${l.refund.status.toLowerCase()} · ${money(l.refundAmount)}`,cls:l.refund.status==='COMPLETED'?'':'pending'};if(l.voided)return{text:'Authorization void confirmed',cls:''};if(l.capture)return{text:`Payment ${l.capture.status.toLowerCase()}`,cls:l.capture.status==='COMPLETED'?'':'pending'};if(l.authorization)return{text:'Payment authorized · not charged',cls:''};if(l.order)return{text:'Waiting for PayPal buyer approval',cls:'pending'};if(l.reservation)return{text:'Inventory reserved · payment not authorized',cls:'pending'};return{text:'Not reserved',cls:''};}
-function render(){
-  $('empty-state').classList.add('hidden');$('bundle-content').classList.remove('hidden');
-  $('bundle-state').textContent=states[run.state]??run.state;$('bundle-state').className=`badge ${['OUTCOME_UNKNOWN','RECOVERY_REQUIRED','NEEDS_ATTENTION','REFUND_PENDING'].includes(run.state)?'amber':''}`;
-  $('interpretation').innerHTML=`<span class="source-tag">${run.interpretation.source==='gemini'?`Gemini · ${escape(run.interpretation.model)}`:'Rule-based demonstration · not AI'}</span>${escape(run.interpretation.summary)}${run.interpretation.evidence?.length?`<div class="leg-term">Source: ${run.interpretation.evidence.map(x=>`“${escape(x)}”`).join(' · ')}</div>`:''}`;
-  const cheapest=run.plan.cheapest,chosen=run.plan.chosen;
-  $('comparison').innerHTML=`<div class="comparison-card"><span>Lowest price</span><div class="price">${money(cheapest.total)}</div><p>${money(cheapest.declaredLoss)} declared cancellation penalties<br>${cheapest.declaredLoss>run.plan.constraints.maxLoss?'Exceeds your cancellation allowance':'Within your cancellation allowance'}</p></div><div class="comparison-card chosen"><span>${chosen?'Your eligible bundle':'No eligible bundle'}</span><div class="price">${chosen?money(chosen.total):'—'}</div><p>${chosen?`<strong>${money(chosen.declaredLoss)} declared penalties</strong><br>Within your ${money(run.plan.constraints.budget)} budget`:`${run.plan.requiredBudget?`At least ${money(run.plan.requiredBudget)} needed for these cancellation terms.`:'No supported combination meets the terms.'}`}</p></div>`;
-  $('plan-reason').textContent=`${run.plan.reason} ${run.plan.compared} combinations checked.`;
-  $('legs').innerHTML=run.legs.map(l=>{const st=legStatus(l),ref=l.refund?.id??l.capture?.id??l.authorization?.id;return `<article class="leg"><div class="leg-icon">${({ticket:'↗',hotel:'⌂',shuttle:'⇄'})[l.category]}</div><div class="leg-main"><div class="leg-title"><span>${escape(l.name)}</span><span>${money(l.amount)}</span></div><div class="leg-sub">${escape(l.seller)} · ${l.travelers} traveler${l.travelers>1?'s':''}</div><div class="leg-term">${escape(l.term)}${l.travelers>1?' Terms shown per person.':''}</div><div class="leg-finance ${st.cls}">${escape(st.text)}</div>${ref?`<div class="leg-ref">${escape(ref)}</div>`:''}${l.reservation?.status==='HELD'?`<div class="leg-term">Fictional inventory hold expires ${new Date(l.reservation.expiresAt).toLocaleTimeString()}</div>`:''}</div></article>`;}).join('');
-  $('approval-controls').innerHTML=run.mode==='sandbox'&&run.state==='AWAITING_APPROVAL'?run.legs.filter(x=>!x.authorization&&x.order?.approvalUrl).map(l=>`<div class="approval-row"><span>${escape(l.seller)} · ${money(l.amount)}</span><a class="button" href="${escape(l.order.approvalUrl)}">Approve Sandbox hold ↗</a></div>`).join(''):'';
-  const s=run.summary;$('financial-summary').innerHTML=['held','charged','refunded','refundPending'].map((k,i)=>`<div><span>${['Held','Charged','Refunded','Refund pending'][i]}</span><strong>${money(s[k])}</strong></div>`).join('');
-  const messages={DRAFT:'Review the exact prices and cancellation terms. Preparing creates supplier reservations and payment authorizations, not captures.',BLOCKED:'Nothing has been reserved. Change your limits explicitly and find another bundle.',PREPARING:'Preparation did not finish. Retry with the saved identifiers, or recover known holds.',AWAITING_APPROVAL:'PayPal requires a separate buyer approval for each seller. Return here after approving each hold.',READY:run.legs.some(x=>x.capture)?'A previous capture was verified. Continue to execute only the remaining operations.':'All three authorizations are recorded. Supplier holds will be rechecked before capture.',COMPLETED:'Every payment capture and simulated supplier confirmation completed. This demonstrates a successful bundle, not a guarantee against future cancellations.',RECOVERY_REQUIRED:`Execution stopped: ${run.recoveryReason} Recover known payments and holds.`,OUTCOME_UNKNOWN:'A response is missing or pending. A timeout does not prove failure. Check provider records before continuing or recovering.',REFUND_PENDING:`${money(s.refundPending)} is still awaiting refund confirmation. It has not been counted as returned.`,RECOVERED:`Recovery confirmed. ${money(s.netCharged)} remains charged${s.declaredFees?' under the accepted cancellation terms':''}. Bank availability after a refund can take additional time.`,NEEDS_ATTENTION:`Recovery is incomplete. ${money(s.netCharged)} remains charged and ${money(s.held)} remains authorized. Inspect the operation trail.`,RECOVERING:'Recovery was interrupted. Resume from the persisted operation records.'};
-  $('run-message').textContent=(messages[run.state]??run.recoveryReason??'')+(s.capturePending?` ${money(s.capturePending)} has a pending capture; it is not counted as confirmed charged.`:'')+(run.operations.some(x=>['UNKNOWN','STARTED'].includes(x.status))?' Financial totals include confirmed records only; unknown operations can change them.':'');$('run-message').className=`run-message ${['OUTCOME_UNKNOWN','RECOVERY_REQUIRED','NEEDS_ATTENTION','REFUND_PENDING'].includes(run.state)?'alert':''}`;
-  let controls='';
-  if(['DRAFT','PREPARING'].includes(run.state))controls+=`<button class="button primary" data-action="prepare">${run.state==='DRAFT'?'Approve terms & prepare':'Resume preparation'} ↗</button>`;
-  if(['READY','RUNNING'].includes(run.state))controls+='<button class="button primary" data-action="commit">Commit this bundle ↗</button>';
-  if(['OUTCOME_UNKNOWN','REFUND_PENDING','NEEDS_ATTENTION','RUNNING','RECOVERING'].includes(run.state))controls+='<button class="button" data-action="reconcile">Check provider records ↻</button>';
-  if(['READY','AWAITING_APPROVAL','PREPARING','RUNNING','OUTCOME_UNKNOWN','RECOVERY_REQUIRED','RECOVERING','NEEDS_ATTENTION','REFUND_PENDING'].includes(run.state))controls+='<button class="button danger" data-action="recover">Recover payments & holds</button>';
-  $('run-controls').innerHTML=controls;
-  $('manifest-note').textContent=run.manifestHash?`Reviewed version ${run.manifestHash.slice(0,16)} · ${run.mode==='simulation'?'All payment references prefixed SIM are local simulations.':'Payment references come from PayPal Sandbox. Supplier reservations remain simulated.'}`:'No eligible purchase manifest was created.';
-  $('timeline').innerHTML=run.events.map(e=>`<div class="timeline-item ${/REJECTED|UNRESOLVED|ATTENTION/.test(e.type)?'issue':/UNKNOWN|PENDING/.test(e.type)?'warn':''}"><time>${new Date(e.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</time><div class="timeline-dot"></div><div><span class="timeline-kind">${escape(e.type.replaceAll('_',' '))}</span>${escape(e.message)}${e.details?.providerId?`<div class="leg-ref">${escape(e.details.providerId)}</div>`:''}</div></div>`).join('');
-  $('export-button').disabled=busy||!run;
-  $('run-controls').querySelectorAll('[data-action]').forEach(b=>{b.disabled=busy;b.addEventListener('click',()=>work(async()=>{run=await request(`/api/runs/${run.id}/${b.dataset.action}`,{manifestHash:run.manifestHash});}));});
+const element = id => document.getElementById(id);
+const money = cents => new Intl.NumberFormat('en-US', {
+  style: 'currency', currency: 'USD', maximumFractionDigits: 2,
+}).format(cents / 100);
+
+// Provider text, user briefs, and model output share this escaping boundary.
+const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+})[character]);
+
+const stateLabels = {
+  DRAFT: 'Ready for your review', BLOCKED: 'Adjust your limits',
+  PREPARING: 'Preparing your plan', AWAITING_APPROVAL: 'Buyer approvals needed',
+  READY: 'Ready to complete', RUNNING: 'Processing payments',
+  COMPLETED: 'Plan complete', RECOVERY_REQUIRED: 'Recovery needed',
+  RECOVERING: 'Recovering payments', OUTCOME_UNKNOWN: 'Checking the outcome',
+  REFUND_PENDING: 'Refund pending', RECOVERED: 'Recovery confirmed',
+  NEEDS_ATTENTION: 'Needs attention',
+};
+const attentionStates = ['OUTCOME_UNKNOWN', 'RECOVERY_REQUIRED', 'NEEDS_ATTENTION', 'REFUND_PENDING'];
+let config;
+let run;
+let busy = false;
+
+async function request(path, body) {
+  const options = { cache: 'no-store', credentials: 'same-origin' };
+  if (body !== undefined) {
+    options.method = 'POST';
+    options.headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': config.csrf };
+    options.body = JSON.stringify(body);
+  }
+  const response = await fetch(path, options);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error ?? 'The request could not complete. Try again.');
+  return result;
 }
-$('plan-form').addEventListener('submit',e=>{e.preventDefault();work(async()=>{
-  const budget=Math.round(Number($('budget').value)*100),maxLoss=Math.round(Number($('max-loss').value)*100);
-  run=await request('/api/plans',{brief:$('brief').value,budget,maxLoss,travelers:Number($('travelers').value),scenario:$('scenario').value,useRules:$('use-rules').checked});
-  location.hash=`run=${run.id}`;render();
-});});
-$('export-button').addEventListener('click',()=>{if(run)location.href=`/api/runs/${run.id}/evidence`;});
-async function init(){
-  try{
-    config=await request('/api/session');
-    $('provider-badge').textContent=config.mode==='simulation'?'SIMULATION · NO PAYPAL CALLS':'PAYPAL SANDBOX · TEST FUNDS';
-    $('notice').textContent=`${config.limits.payments} All supplier names, inventory, prices, and terms are fictional. ${config.aiConfigured?'Gemini is configured for intake; financial decisions stay in code.':'AI is not configured: intake uses the explicitly labelled rule-based demonstration.'}`;
-    $('scenario').innerHTML=Object.entries(config.scenarios).filter(([k])=>config.mode==='simulation'||k==='success').map(([k,v])=>`<option value="${escape(k)}">${escape(v.name)}</option>`).join('');
-    $('use-rules').checked=!config.aiConfigured;$('ai-source').textContent=config.aiConfigured?`${config.model} available. Use the checkbox to choose the rule-based demo explicitly.`:'No AI provider key found. The fallback uses the fixed demonstration itinerary and does not understand arbitrary travel requests.';
-    const id=new URLSearchParams(location.hash.slice(1)).get('run');if(id){run=await request(`/api/runs/${encodeURIComponent(id)}`);render();}
-  }catch(e){error(e.message);$('notice').textContent='The local service could not load. Check that the server is running.';}
+
+function showError(message) {
+  element('error').textContent = message;
+  element('error').classList.toggle('hidden', !message);
+  if (message) element('error').focus({ preventScroll: false });
+}
+
+function setBusy(value) {
+  busy = value;
+  element('plan-form').setAttribute('aria-busy', String(value));
+  element('bundle-content').setAttribute('aria-busy', String(value));
+  element('plan-form').querySelectorAll('input, textarea, select, button').forEach(control => {
+    control.disabled = value;
+  });
+  element('run-controls').querySelectorAll('button').forEach(button => {
+    button.disabled = value;
+  });
+  element('export-button').disabled = value || !run;
+  element('plan-button').innerHTML = value
+    ? '<span class="spinner" aria-hidden="true"></span> Working on your plan…'
+    : 'Compare my options <span aria-hidden="true">↗</span>';
+}
+
+async function work(operation) {
+  if (busy) return;
+  showError('');
+  setBusy(true);
+  try {
+    await operation();
+  } catch (error) {
+    showError(error.message);
+    // A disconnected response can still have completed on the server.
+    if (run) {
+      try { run = await request('/api/runs/' + run.id); } catch { /* Keep the last known record. */ }
+    }
+  } finally {
+    setBusy(false);
+    if (run) render();
+  }
+}
+
+function legStatus(leg) {
+  if (leg.recoveryError) return { text: leg.recoveryError, className: 'issue' };
+  if (leg.refund) return {
+    text: 'Refund ' + leg.refund.status.toLowerCase() + ' · ' + money(leg.refundAmount),
+    className: leg.refund.status === 'COMPLETED' ? '' : 'pending',
+  };
+  if (leg.voided) return { text: 'Payment hold released', className: '' };
+  if (leg.capture) return {
+    text: 'Payment ' + leg.capture.status.toLowerCase(),
+    className: leg.capture.status === 'COMPLETED' ? '' : 'pending',
+  };
+  if (leg.authorization) return { text: 'Payment hold authorized', className: '' };
+  if (leg.order) return { text: 'Waiting for your PayPal approval', className: 'pending' };
+  return { text: leg.reservation ? 'Inventory reserved' : 'Ready to review', className: 'pending' };
+}
+
+function renderLeg(leg) {
+  const status = legStatus(leg);
+  const reference = leg.refund?.id ?? leg.capture?.id ?? leg.authorization?.id;
+  const icon = { ticket: '↗', hotel: '⌂', shuttle: '⇄' }[leg.category];
+  const hold = leg.reservation?.status === 'HELD'
+    ? '<div class="leg-term">Sample inventory hold until ' + new Date(leg.reservation.expiresAt).toLocaleTimeString() + '</div>' : '';
+  return '<article class="leg"><div class="leg-icon" aria-hidden="true">' + icon + '</div>' +
+    '<div class="leg-main"><div class="leg-title"><span>' + escape(leg.name) + '</span><span>' + money(leg.amount) + '</span></div>' +
+    '<div class="leg-sub">' + escape(leg.seller) + ' · ' + leg.travelers + ' traveler' + (leg.travelers > 1 ? 's' : '') + '</div>' +
+    '<div class="leg-term">' + escape(leg.term) + (leg.travelers > 1 ? ' Terms shown per person.' : '') + '</div>' +
+    '<div class="leg-finance ' + status.className + '">' + escape(status.text) + '</div>' + hold +
+    (reference ? '<details class="leg-reference"><summary>Payment reference</summary><div class="leg-ref">' + escape(reference) + '</div></details>' : '') +
+    '</div></article>';
+}
+
+function runMessage() {
+  const summary = run.summary;
+  const messages = {
+    DRAFT: 'Review the prices and cancellation terms. Preparing will reserve sample inventory and create payment holds.',
+    BLOCKED: 'Try a different budget or cancellation allowance. Your current limits have been kept.',
+    PREPARING: 'Preparation needs another check. Resume with the saved payment identifiers, or recover the known holds.',
+    AWAITING_APPROVAL: 'Approve each seller’s PayPal Sandbox order below. Return here after each approval.',
+    READY: run.legs.some(leg => leg.capture)
+      ? 'Your earlier payment was verified. Continue to complete the remaining purchases.'
+      : 'Every seller’s payment hold is ready. Complete the bundle when you’re ready to proceed.',
+    COMPLETED: 'Every payment and sample booking is confirmed. Your complete plan is recorded below.',
+    RECOVERY_REQUIRED: 'The checkout stopped. ' + run.recoveryReason + ' Start recovery to follow the accepted cancellation terms.',
+    OUTCOME_UNKNOWN: 'A payment response is missing or pending. Check provider records to find its outcome before continuing.',
+    REFUND_PENDING: money(summary.refundPending) + ' is awaiting refund confirmation. Check provider records again to follow its progress.',
+    RECOVERED: 'Recovery is confirmed. ' + money(summary.netCharged) + ' remains charged under the accepted terms. Your bank may take additional time to make refunded funds available.',
+    NEEDS_ATTENTION: 'Recovery needs attention. ' + money(summary.netCharged) + ' remains charged and ' + money(summary.held) + ' remains authorized. Follow the outstanding steps in Activity.',
+    RECOVERING: 'Recovery was interrupted. Check the saved provider records to resume.',
+  };
+  let message = messages[run.state] ?? 'Check the latest activity for this plan.';
+  if (summary.capturePending) message += ' A ' + money(summary.capturePending) + ' capture is still pending.';
+  if (run.operations.some(operation => ['UNKNOWN', 'STARTED'].includes(operation.status))) {
+    message += ' The totals show confirmed records. Unknown operations can change these amounts.';
+  }
+  return message;
+}
+
+function actionButton(action, label, primary = false) {
+  return '<button class="button ' + (primary ? 'button-primary' : action === 'recover' ? 'button-danger' : '') +
+    '" data-action="' + action + '">' + label + '</button>';
+}
+
+function renderControls() {
+  const buttons = [];
+  if (['DRAFT', 'PREPARING'].includes(run.state)) {
+    buttons.push(actionButton('prepare', run.state === 'DRAFT' ? 'Approve terms & prepare ↗' : 'Resume preparation ↗', true));
+  }
+  if (['READY', 'RUNNING'].includes(run.state)) buttons.push(actionButton('commit', 'Complete this bundle ↗', true));
+  if (['OUTCOME_UNKNOWN', 'REFUND_PENDING', 'NEEDS_ATTENTION', 'RUNNING', 'RECOVERING'].includes(run.state)) {
+    buttons.push(actionButton('reconcile', 'Check provider records ↻'));
+  }
+  if (['READY', 'AWAITING_APPROVAL', 'PREPARING', 'RUNNING', 'OUTCOME_UNKNOWN', 'RECOVERY_REQUIRED', 'RECOVERING', 'NEEDS_ATTENTION', 'REFUND_PENDING'].includes(run.state)) {
+    buttons.push(actionButton('recover', 'Start recovery'));
+  }
+  element('run-controls').innerHTML = buttons.join('');
+  element('run-controls').querySelectorAll('[data-action]').forEach(button => {
+    button.disabled = busy;
+    button.addEventListener('click', () => work(async () => {
+      run = await request('/api/runs/' + run.id + '/' + button.dataset.action, { manifestHash: run.manifestHash });
+    }));
+  });
+}
+
+function safeApprovalUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.origin === 'https://www.sandbox.paypal.com' && !url.username && !url.password) return url.href;
+  } catch { /* Invalid provider links stay inactive. */ }
+  return null;
+}
+
+function render() {
+  element('empty-state').classList.add('hidden');
+  element('bundle-content').classList.remove('hidden');
+  const warning = attentionStates.includes(run.state);
+  element('bundle-state').textContent = stateLabels[run.state] ?? run.state;
+  element('bundle-state').className = 'badge ' + (warning ? 'badge-warning' : ['COMPLETED', 'RECOVERED'].includes(run.state) ? 'badge-success' : '');
+  const source = run.interpretation.source === 'gemini' ? 'Interpreted with Gemini' : 'Sample itinerary · rule-based';
+  const evidence = run.interpretation.evidence?.length
+    ? '<div class="leg-term">From your brief · ' + run.interpretation.evidence.map(quote => '“' + escape(quote) + '”').join(' · ') + '</div>' : '';
+  element('interpretation').innerHTML = '<span class="source-tag">' + source + '</span>' + escape(run.interpretation.summary) + evidence;
+  const cheapest = run.plan.cheapest;
+  const chosen = run.plan.chosen;
+  element('comparison').innerHTML =
+    '<div class="comparison-card"><span>Lowest price</span><div class="price">' + money(cheapest.total) + '</div><p>' +
+    money(cheapest.declaredLoss) + ' cancellation fees<br>' +
+    (cheapest.declaredLoss > run.plan.constraints.maxLoss ? 'Above your accepted fees' : 'Within your accepted fees') +
+    '</p></div><div class="comparison-card chosen"><span>' + (chosen ? 'Your eligible bundle' : 'Adjust your limits') +
+    '</span><div class="price">' + (chosen ? money(chosen.total) : '—') + '</div><p>' +
+    (chosen ? '<strong>' + money(chosen.declaredLoss) + ' cancellation fees</strong><br>Within your ' + money(run.plan.constraints.budget) + ' budget'
+      : 'At least ' + money(run.plan.requiredBudget) + ' needed for these terms') + '</p></div>';
+  element('plan-reason').textContent = run.plan.reason + ' ' + run.plan.compared + ' sample combinations compared.';
+  element('legs').innerHTML = run.legs.map(renderLeg).join('');
+  element('approval-controls').replaceChildren();
+  if (run.mode === 'sandbox' && run.state === 'AWAITING_APPROVAL') {
+    for (const leg of run.legs.filter(item => !item.authorization)) {
+      const url = safeApprovalUrl(leg.order?.approvalUrl);
+      if (!url) continue;
+      const row = document.createElement('div');
+      row.className = 'approval-row';
+      const label = document.createElement('span');
+      label.textContent = leg.seller + ' · ' + money(leg.amount);
+      const link = document.createElement('a');
+      link.className = 'button';
+      link.href = url;
+      link.textContent = 'Approve Sandbox hold ↗';
+      row.append(label, link);
+      element('approval-controls').append(row);
+    }
+  }
+  const metrics = [['held', 'Payment holds'], ['charged', 'Charged'], ['refunded', 'Refunded'], ['refundPending', 'Refund pending']];
+  element('financial-summary').innerHTML = metrics.map(([key, label]) => '<div><span>' + label + '</span><strong>' + money(run.summary[key]) + '</strong></div>').join('');
+  element('run-message').textContent = runMessage();
+  element('run-message').className = 'run-message' + (warning ? ' alert' : '');
+  renderControls();
+  element('manifest-note').textContent = run.manifestHash
+    ? 'Reviewed version ' + run.manifestHash + '. ' + (run.mode === 'simulation' ? 'SIM references are local simulation records.' : 'Payment references come from PayPal Sandbox.') + ' Supplier bookings use sample inventory.'
+    : 'Change your limits and compare another plan.';
+  element('timeline').innerHTML = run.events.map(event => {
+    const eventClass = /REJECTED|UNRESOLVED|ATTENTION/.test(event.type) ? 'issue' : /UNKNOWN|PENDING/.test(event.type) ? 'warn' : '';
+    const time = new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return '<div class="timeline-item ' + eventClass + '"><time>' + escape(time) + '</time><div class="timeline-dot"></div><div><span class="timeline-kind">' +
+      escape(event.type.replaceAll('_', ' ')) + '</span>' + escape(event.message) +
+      (event.details?.providerId ? '<div class="leg-ref">' + escape(event.details.providerId) + '</div>' : '') + '</div></div>';
+  }).join('');
+  element('timeline').scrollTop = element('timeline').scrollHeight;
+  element('export-button').disabled = busy;
+  const step = run.state === 'BLOCKED' ? 1 : run.state === 'DRAFT' ? 2 :
+    ['PREPARING', 'AWAITING_APPROVAL', 'READY'].includes(run.state) ? 3 : 4;
+  document.querySelectorAll('[data-step]').forEach(item => {
+    const number = Number(item.dataset.step);
+    item.classList.toggle('is-complete', number < step);
+    if (number === step) item.setAttribute('aria-current', 'step');
+    else item.removeAttribute('aria-current');
+  });
+}
+
+element('plan-form').addEventListener('submit', event => {
+  event.preventDefault();
+  work(async () => {
+    run = await request('/api/plans', {
+      brief: element('brief').value,
+      budget: Math.round(Number(element('budget').value) * 100),
+      maxLoss: Math.round(Number(element('max-loss').value) * 100),
+      travelers: Number(element('travelers').value),
+      scenario: element('scenario').value,
+      useRules: element('use-rules').checked,
+    });
+    const url = new URL(location.href);
+    url.searchParams.set('run', run.id);
+    url.hash = '';
+    history.replaceState(null, '', url);
+    render();
+    if (window.matchMedia('(max-width: 680px)').matches) {
+      element('review-title').scrollIntoView({ block: 'start' });
+    }
+  });
+});
+element('export-button').addEventListener('click', () => {
+  if (run) location.href = '/api/runs/' + run.id + '/evidence';
+});
+
+const guide = element('guide-dialog');
+document.querySelectorAll('[data-open-guide]').forEach(button => {
+  button.addEventListener('click', () => guide.showModal());
+});
+element('close-guide').addEventListener('click', () => guide.close());
+element('start-planning').addEventListener('click', () => {
+  guide.close();
+  element('brief').focus();
+});
+guide.addEventListener('click', event => {
+  if (event.target !== guide) return;
+  const bounds = guide.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) guide.close();
+});
+document.querySelectorAll('.app-nav-link[href^="#"]').forEach(link => {
+  link.addEventListener('click', () => {
+    document.querySelectorAll('.app-nav-link').forEach(item => {
+      const active = item === link;
+      item.classList.toggle('is-active', active);
+      if (active) item.setAttribute('aria-current', 'page');
+      else item.removeAttribute('aria-current');
+    });
+  });
+});
+
+function describeScenario() {
+  element('scenario-description').textContent = config.scenarios[element('scenario').value]?.description ?? '';
+}
+element('scenario').addEventListener('change', describeScenario);
+
+async function init() {
+  try {
+    config = await request('/api/session');
+    element('provider-badge').textContent = config.mode === 'simulation' ? 'Simulation mode' : 'PayPal Sandbox';
+    element('notice').textContent = config.mode === 'simulation'
+      ? 'You’re exploring sample trips with simulated payments. All suppliers, prices and booking availability are fictional.'
+      : 'PayPal Sandbox is active with test funds. Each seller needs a separate buyer approval. Supplier listings and inventory are sample data.';
+    element('scenario').innerHTML = Object.entries(config.scenarios)
+      .filter(([key]) => config.mode === 'simulation' || key === 'success')
+      .map(([key, value]) => '<option value="' + escape(key) + '">' + escape(value.name) + '</option>').join('');
+    const params = new URLSearchParams(location.search);
+    const requestedScenario = params.get('scenario');
+    if (config.mode === 'simulation' && Object.hasOwn(config.scenarios, requestedScenario)) element('scenario').value = requestedScenario;
+    if (params.get('example') === 'flexible' && config.mode === 'simulation') element('scenario').value = 'confirmation_failure';
+    describeScenario();
+    element('use-rules').checked = !config.aiConfigured;
+    element('ai-source').textContent = config.aiConfigured
+      ? 'Uncheck to let Gemini interpret your brief. You’ll review its result before proceeding.'
+      : 'The demo uses a fixed concert itinerary. AI interpretation becomes available when Gemini is configured.';
+    element('plan-button').disabled = false;
+    const id = params.get('run') ?? new URLSearchParams(location.hash.slice(1)).get('run');
+    if (id) {
+      if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('This plan link is invalid. Start a new comparison below.');
+      run = await request('/api/runs/' + id);
+      element('brief').value = run.brief;
+      element('budget').value = (run.plan.constraints.budget / 100).toFixed(2);
+      element('max-loss').value = (run.plan.constraints.maxLoss / 100).toFixed(2);
+      element('travelers').value = String(run.plan.constraints.travelers);
+      element('scenario').value = run.scenario;
+      element('use-rules').checked = run.interpretation.source === 'rules';
+      describeScenario();
+      render();
+    }
+  } catch (error) {
+    showError(error.message);
+    if (!config) element('notice').textContent = 'The workspace service is unavailable. Refresh when the local server is running.';
+  }
 }
 init();

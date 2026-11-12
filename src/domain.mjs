@@ -55,10 +55,14 @@ export function createManifest(plan) {
   assert(plan.chosen, 'No eligible bundle.');
   return { version: 1, currency: 'USD', constraints: plan.constraints, legs: plan.chosen.legs.map(({id,category,seller,name,amount,cancellationFee,holdSeconds,term,travelers})=>({id,category,seller,name,amount,cancellationFee,holdSeconds,term,travelers})) };
 }
+export function captureRejected(capture) {
+  return ['DECLINED', 'FAILED'].includes(capture?.status);
+}
+
 export function financialSummary(run) {
   let held=0, charged=0, refunded=0, refundPending=0, capturePending=0;
   for(const leg of run.legs){
-    if(leg.authorization && !leg.capture && !leg.voided) held+=leg.amount;
+    if(leg.authorization && (!leg.capture || captureRejected(leg.capture)) && !leg.voided) held+=leg.amount;
     if(leg.capture?.status==='PENDING') capturePending+=leg.amount;
     if(['COMPLETED','REFUNDED','PARTIALLY_REFUNDED'].includes(leg.capture?.status)) charged+=leg.amount;
     if(leg.refund?.status==='COMPLETED') refunded+=leg.refundAmount;

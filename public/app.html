@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#003ee8">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Your plan — WholePlan</title>
+  <meta name="description" content="Review a connected purchase, approve its terms and track every payment and recovery step in your WholePlan workspace.">
+  <link rel="icon" href="/assets/favicon-64.png" type="image/png" sizes="64x64">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body class="workspace-page">
+  <a class="skip-link" href="#workspace-main">Skip to workspace</a>
+  <header class="app-header"><a class="brand" href="/" aria-label="WholePlan home"><img class="brand-logo" src="/assets/wholeplan-mark.png" alt="" width="40" height="40">wholeplan<span class="brand-period">.</span></a><span class="app-header-label">YOUR WORKSPACE</span><div class="app-header-actions"><span id="provider-badge" class="badge">Connecting…</span><button class="icon-button help-button" data-open-guide aria-label="Open quick-start guide">?</button></div></header>
+  <div class="workspace-layout">
+    <aside class="app-sidebar"><p class="eyebrow">LET’S MAKE A PLAN</p><nav aria-label="Workspace"><a class="app-nav-link is-active" href="#planner" aria-current="page"><span aria-hidden="true">▧</span> Your plan <span class="nav-arrow">↗</span></a><a class="app-nav-link" href="#activity"><span aria-hidden="true">↗</span> Activity</a><button class="app-nav-link" data-open-guide><span aria-hidden="true">◇</span> Quick-start guide</button><a class="app-nav-link home-nav" href="/"><span aria-hidden="true">←</span> Back to home</a></nav><div class="sidebar-card"><img class="sidebar-brand-logo" src="/assets/wholeplan-mark.png" alt="" width="64" height="64" loading="lazy"><p>Every piece.<br>One whole plan.</p><span>Review the details.<br>Decide with clarity.</span></div><div class="sidebar-bottom"><span class="blue-dot"></span> WholePlan prototype</div></aside>
+    <main class="workspace-main" id="workspace-main">
+      <section class="workspace-heading" id="planner"><div><p class="eyebrow">A LITTLE PLANNING GOES A LONG WAY</p><h1>Your next <span class="blue-text">great plan.</span></h1><p>Bring the ticket, the stay and the ride together.</p></div><button class="button button-small" data-open-guide>First time here? <span aria-hidden="true">↗</span></button></section>
+      <div id="notice" class="notice" role="status">Connecting to your workspace…</div>
+      <div id="error" class="error hidden" role="alert" tabindex="-1"></div>
+      <ol class="progress-rail" aria-label="Checkout progress"><li data-step="1" aria-current="step"><span>01</span> Describe</li><li data-step="2"><span>02</span> Review</li><li data-step="3"><span>03</span> Approve &amp; pay</li><li data-step="4"><span>04</span> Track outcome</li></ol>
+      <div class="studio-grid">
+        <form id="plan-form" class="panel brief-panel"><div class="panel-heading"><div><p class="eyebrow">01 / YOUR REQUEST</p><h2>What’s the plan?</h2></div><span class="heading-symbol" aria-hidden="true">↗</span></div>
+          <label for="brief">Tell us what needs to work together</label><textarea id="brief" rows="5" minlength="5" maxlength="4000" aria-describedby="brief-help" required>I want a concert ticket, a room for the night, and a return shuttle. Only book the trip if all three can work together.</textarea><p class="field-help" id="brief-help">Try the supported concert, room and return-shuttle example.</p>
+          <div class="field-pair"><div><label for="budget">Total budget <span>USD</span></label><div class="money-input"><span>$</span><input id="budget" type="number" min="1" max="1000000" step="0.01" value="300" required inputmode="decimal"></div></div><div><label for="max-loss">Max cancellation fees</label><div class="money-input"><span>$</span><input id="max-loss" type="number" min="0" max="1000000" step="0.01" value="0" required inputmode="decimal" aria-describedby="fees-help"></div></div></div>
+          <p class="field-help" id="fees-help">The supplier cancellation penalties you accept for the complete bundle. Processing fees and currency conversion are outside this comparison.</p>
+          <label for="travelers">Who’s coming?</label><select id="travelers"><option value="1">1 traveler</option><option value="2">2 travelers</option><option value="3">3 travelers</option><option value="4">4 travelers</option><option value="5">5 travelers</option><option value="6">6 travelers</option></select>
+          <div class="scenario-field"><label for="scenario">Explore a scenario</label><select id="scenario" aria-describedby="scenario-description"></select><p class="field-help" id="scenario-description"></p></div>
+          <div class="intake-option"><label class="checkbox-label"><input id="use-rules" type="checkbox"> Use the sample itinerary</label><p id="ai-source" class="field-help"></p></div>
+          <button class="button button-primary full" id="plan-button" type="submit" disabled>Compare my options <span aria-hidden="true">↗</span></button><p class="form-foot"><span aria-hidden="true">◇</span> Review your options before any reservation or payment.</p>
+        </form>
+        <section class="panel bundle-panel" aria-labelledby="review-title"><div class="panel-heading"><div><p class="eyebrow">02 / THE WHOLE PICTURE</p><h2 id="review-title">Your plan, considered.</h2></div><span id="bundle-state" class="badge badge-neutral">Waiting for your brief</span></div>
+          <div id="empty-state" class="empty-state"><img class="empty-plan-art" src="/assets/wholeplan-hero-640.webp" alt="" width="180" height="180" loading="lazy" decoding="async"><h3>A great evening starts<br>with the whole picture.</h3><p>Add your brief and budget.<br>We’ll bring the options together here.</p><div class="empty-nodes"><span>Ticket</span><span>Stay</span><span>Ride</span></div></div>
+          <div id="bundle-content" class="hidden"><div id="interpretation" class="interpretation"></div><div id="comparison" class="comparison"></div><p id="plan-reason" class="plan-reason"></p><div id="legs" class="legs"></div><div id="approval-controls"></div><div id="financial-summary" class="financial-summary"></div><div class="outcome-box"><div id="run-message" class="run-message" role="status" aria-live="polite"></div><div id="run-controls" class="run-controls"></div></div><details class="technical-details"><summary>View plan reference</summary><p id="manifest-note" class="manifest-note"></p></details></div>
+        </section>
+      </div>
+      <section class="panel activity-panel" id="activity" aria-labelledby="activity-title"><div class="panel-heading"><div><p class="eyebrow">03 / NO LOOSE ENDS</p><h2 id="activity-title">Follow every step.</h2><p>Your payment and recovery activity stays together.</p></div><button class="text-button" id="export-button" disabled>Download record <span aria-hidden="true">↓</span></button></div><div id="timeline" class="timeline"><div class="timeline-empty"><span aria-hidden="true">↗</span><p>Your activity will appear when you compare a plan.</p></div></div></section>
+      <footer class="workspace-footer"><span>WholePlan · Connected checkout prototype</span><a href="/#questions">Questions? Start here ↗</a></footer>
+    </main>
+  </div>
+  <dialog id="guide-dialog" class="guide-dialog" aria-labelledby="guide-title"><div class="guide-dialog-top"><span class="eyebrow">WELCOME TO WHOLEPLAN</span><button class="icon-button" id="close-guide" aria-label="Close guide">×</button></div><h2 id="guide-title">A plan in<br>four simple steps.</h2><ol class="guide-steps"><li><span>01</span><div><h3>Tell us the whole idea.</h3><p>Start with the sample ticket, room and shuttle. Set your budget and accepted cancellation fees.</p></div></li><li><span>02</span><div><h3>Review the details.</h3><p>Compare prices and cancellation terms. Nothing is reserved until you choose to prepare.</p></div></li><li><span>03</span><div><h3>Approve, then complete.</h3><p>Prepare payment holds. In PayPal Sandbox, approve each seller separately. Then complete the bundle.</p></div></li><li><span>04</span><div><h3>Follow the outcome.</h3><p>If a step fails, use recovery. Pending refunds and unresolved amounts stay visible in your activity.</p></div></li></ol><button class="button button-primary full" id="start-planning">Let’s build a plan <span aria-hidden="true">↗</span></button></dialog>
+</body>
+</html>

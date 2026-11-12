@@ -28,3 +28,69 @@ test('recovery can reconcile an uncertain capture before refunding it',async t=>
 test('a process restart retains an unknown operation, provider effect, and request ID',async()=>{const dir=mkdtempSync(join(tmpdir(),'wholeplan-'));let store;try{const path=join(dir,'test.sqlite');store=new Store(path);let engine=new Engine({store,provider:new Simulator(store)});const r=engine.create('buyer',{...input,scenario:'lost_response'});await engine.prepare(r.id,'buyer',r.manifestHash);await engine.commit(r.id,'buyer',r.manifestHash);const requestId=store.op(`${r.id}:ticket:capture`).requestId;store.close();store=new Store(path);engine=new Engine({store,provider:new Simulator(store)});assert.equal((await engine.reconcile(r.id,'buyer')).state,'READY');assert.equal((await engine.commit(r.id,'buyer',r.manifestHash)).state,'COMPLETED');assert.equal(store.op(`${r.id}:ticket:capture`).requestId,requestId);assert.equal(captures(store,r.id).length,3);}finally{store?.close();rmSync(dir,{recursive:true,force:true});}});
 test('a malformed provider success is uncertain, never a definitive rejection',async t=>{const f=fixture(t);await ready(f);const original=f.engine.provider.execute.bind(f.engine.provider);f.engine.provider.execute=async(...args)=>{const result=await original(...args);return args[2]==='capture'?{...result,amount:{currency_code:'EUR',value:'80.00'}}:result;};const r=await f.engine.commit(f.run.id,'buyer',f.run.manifestHash);assert.equal(r.state,'OUTCOME_UNKNOWN');assert.equal(f.store.op(`${r.id}:ticket:capture`).status,'UNKNOWN');assert.equal(captures(f.store,r.id).length,1);});
 test('a pending capture is tracked separately and cannot be refunded as completed',async t=>{const f=fixture(t);await ready(f);const execute=f.engine.provider.execute.bind(f.engine.provider);f.engine.provider.execute=async(...args)=>{const r=await execute(...args);return args[2]==='capture'?{...r,status:'PENDING'}:r;};let r=await f.engine.commit(f.run.id,'buyer',f.run.manifestHash);assert.equal(r.state,'OUTCOME_UNKNOWN');assert.equal(r.summary.charged,0);assert.equal(r.summary.capturePending,8000);f.engine.provider.observe=async()=>null;r=await f.engine.recover(f.run.id,'buyer');assert.equal(r.state,'NEEDS_ATTENTION');assert.equal(r.summary.capturePending,8000);assert.equal(f.store.effects(r.id).filter(x=>x.action==='refund').length,0);});
+
+test('a confirmed capture survives an audit log failure and can be refunded', async t => {
+  const f = fixture(t);
+  await ready(f);
+  const event = f.store.event.bind(f.store);
+  f.store.event = (id, type, message, details) => {
+    if (type === 'PROVIDER_CONFIRMED' && message.includes('capture')) {
+      throw new Error('Internal SQLite details');
+    }
+    event(id, type, message, details);
+  };
+  const { id, manifestHash } = f.run;
+  const stopped = await f.engine.commit(id, 'buyer', manifestHash);
+  assert.equal(stopped.state, 'RECOVERY_REQUIRED');
+  assert.equal(stopped.summary.charged, 8000);
+  assert.doesNotMatch(JSON.stringify(stopped), /Internal SQLite details/);
+  const op = f.store.op(`${id}:ticket:capture`);
+  assert.equal(op.status, 'SUCCEEDED');
+  const recovered = await f.engine.recover(id, 'buyer');
+  assert.equal(recovered.state, 'RECOVERED');
+  assert.equal(recovered.summary.refunded, 8000);
+  assert.equal(captures(f.store, id).length, 1);
+});
+
+test('supplier holds must remain valid through the final capture', async t => {
+  const f = fixture(t);
+  let now = Date.now();
+  f.engine.now = () => now;
+  await ready(f);
+  const execute = f.engine.provider.execute.bind(f.engine.provider);
+  f.engine.provider.execute = async (run, leg, action, op) => {
+    const result = await execute(run, leg, action, op);
+    if (action === 'capture' && leg.category === 'shuttle') now += leg.holdSeconds * 1000;
+    return result;
+  };
+  const stopped = await f.engine.commit(f.run.id, 'buyer', f.run.manifestHash);
+  assert.equal(stopped.state, 'RECOVERY_REQUIRED');
+  assert.equal(stopped.summary.charged, 24500);
+  assert.ok(stopped.legs.every(leg => leg.reservation.status !== 'CONFIRMED'));
+  const recovered = await f.engine.recover(stopped.id, 'buyer');
+  assert.equal(recovered.summary.refunded, 24500);
+});
+
+test('pending capture reconciliation checks identity and releases a declined hold', async t => {
+  const f = fixture(t);
+  await ready(f);
+  const execute = f.engine.provider.execute.bind(f.engine.provider);
+  f.engine.provider.execute = (run, leg, action, op) => action === 'capture'
+    ? { id: 'PENDING-REFERENCE', status: 'PENDING', amount: { currency_code: 'USD', value: '80.00' } }
+    : execute(run, leg, action, op);
+  const stopped = await f.engine.commit(f.run.id, 'buyer', f.run.manifestHash);
+  const capture = stopped.legs[0].capture;
+  f.engine.provider.observe = async () => ({ ...capture, id: 'DIFFERENT-REFERENCE', status: 'COMPLETED' });
+  const pending = await f.engine.reconcile(stopped.id, 'buyer');
+  assert.equal(pending.summary.capturePending, 8000);
+  assert.equal(pending.legs[0].capture.id, capture.id);
+  f.engine.provider.observe = async () => ({ ...capture, status: 'DECLINED' });
+  const declined = await f.engine.reconcile(stopped.id, 'buyer');
+  assert.equal(declined.state, 'RECOVERY_REQUIRED');
+  assert.equal(declined.summary.held, 24500);
+  const recovered = await f.engine.recover(stopped.id, 'buyer');
+  assert.equal(recovered.state, 'RECOVERED');
+  assert.equal(recovered.summary.held, 0);
+  assert.equal(recovered.summary.refunded, 0);
+  assert.ok(recovered.legs.every(leg => leg.voided));
+});
