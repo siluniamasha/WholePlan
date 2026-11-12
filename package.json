@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "description": "Recovery-aware bundle checkout with PayPal Sandbox adapters",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PraveenNimilka/WholePlan.git"
+  },
+  "keywords": ["checkout", "paypal-sandbox", "payment-recovery"],
   "scripts": {
     "start": "node --env-file-if-exists=.env src/server.mjs",
     "test": "node --test test/*.test.mjs",

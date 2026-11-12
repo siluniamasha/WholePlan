@@ -11,7 +11,11 @@ export class Store {
       CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT,run_id TEXT NOT NULL,time TEXT NOT NULL,type TEXT NOT NULL,message TEXT NOT NULL,details TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,status TEXT NOT NULL,body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS simulated_effects(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,body TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,csrf TEXT NOT NULL,created_at INTEGER NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,csrf TEXT NOT NULL,created_at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS events_by_run ON events(run_id);
+      CREATE INDEX IF NOT EXISTS operations_by_run ON operations(run_id);
+      CREATE INDEX IF NOT EXISTS simulated_effects_by_run ON simulated_effects(run_id);
+      CREATE INDEX IF NOT EXISTS sessions_by_creation ON sessions(created_at);`);
   }
   save(run){ this.db.prepare('INSERT INTO runs VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body').run(run.id,run.owner,JSON.stringify(run)); }
   get(id){ const row=this.db.prepare('SELECT body FROM runs WHERE id=?').get(id);return row?JSON.parse(row.body):null; }
@@ -23,7 +27,14 @@ export class Store {
   effect(id){const r=this.db.prepare('SELECT body FROM simulated_effects WHERE id=?').get(id);return r?JSON.parse(r.body):null;}
   putEffect(id,runId,body){this.db.prepare('INSERT INTO simulated_effects VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body').run(id,runId,JSON.stringify(body));}
   effects(runId){return this.db.prepare('SELECT body FROM simulated_effects WHERE run_id=? ORDER BY rowid').all(runId).map(x=>JSON.parse(x.body));}
-  session(id){return this.db.prepare('SELECT * FROM sessions WHERE id=?').get(id);}
-  putSession(id,csrf){this.db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(id,csrf,Date.now());}
+  session(id, now = Date.now()) {
+    return this.db.prepare('SELECT * FROM sessions WHERE id=? AND created_at>?')
+      .get(id, now - 24 * 60 * 60 * 1000);
+  }
+  putSession(id, csrf) {
+    const now = Date.now();
+    this.db.prepare('DELETE FROM sessions WHERE created_at<=?').run(now - 24 * 60 * 60 * 1000);
+    this.db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(id, csrf, now);
+  }
   close(){this.db.close();}
 }

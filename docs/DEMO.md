@@ -1,5 +1,7 @@
 # Demonstration and completion plan
 
+This document records the original submission plan. See the [current setup and verification instructions](../README.md) for the implemented app.
+
 ## The opening sentence
 
 “A ticket without a room is not a trip. WholePlan checks the cancellation consequences of the complete purchase, then shows exactly what happened if a seller or payment fails.”
